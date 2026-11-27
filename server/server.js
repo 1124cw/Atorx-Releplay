@@ -45,8 +45,9 @@ function plainReply(res, httpCode, status) {
 }
 
 const server = http.createServer((req, res) => {
-  const forwarded = TRUST_PROXY ? req.headers['x-forwarded-for'] : null;
-  const ip = (forwarded || req.socket.remoteAddress || '').split(',')[0].trim();
+  // Behind a trusted reverse proxy the client IP is the last X-Forwarded-For entry (added by the proxy).
+  const forwarded = TRUST_PROXY ? String(req.headers['x-forwarded-for'] || '').split(',').pop().trim() : '';
+  const ip = forwarded || req.socket.remoteAddress || '';
 
   if (req.method === 'GET' && req.url === '/health') return plainReply(res, 200, 'ok');
   if (req.method !== 'POST' || req.url !== '/api/verify') return plainReply(res, 404, 'not_found');
