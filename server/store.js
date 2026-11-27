@@ -13,7 +13,7 @@ const KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function ensureDataDir() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
 }
 
 function load() {
@@ -27,7 +27,7 @@ function load() {
 function save(db) {
   ensureDataDir();
   const tmp = KEYS_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
+  fs.writeFileSync(tmp, JSON.stringify(db, null, 2), { mode: 0o600 });
   fs.renameSync(tmp, KEYS_FILE);
 }
 
