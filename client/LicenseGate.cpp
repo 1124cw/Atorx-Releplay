@@ -407,13 +407,13 @@ void StartLogin(HWND window) {
     wchar_t buf[128] = {};
     GetDlgItemTextW(window, ID_KEY, buf, 128);
     std::wstring key = SanitizeKey(buf);
+    if (IsDlgButtonChecked(window, ID_REMEMBER) != BST_CHECKED) StoreSavedKey(L"", false);
     if (key.size() < 4) {
         SetStatus(window, L"Add meg a kulcsodat.", kError);
         SetFocus(GetDlgItem(window, ID_KEY));
         return;
     }
     g_state->key = key;
-    if (IsDlgButtonChecked(window, ID_REMEMBER) != BST_CHECKED) StoreSavedKey(L"", false);
     SetBusy(window, true);
     SetStatus(window, L"Ellenőrzés...", kMuted);
 
