@@ -58,15 +58,28 @@ function pidAlive(pid) {
   }
 }
 
-// A lock is only stale when its owner process is gone (or it never got an owner written).
+function lockOwnerPid() {
+  try {
+    return Number(fs.readFileSync(LOCK_FILE, 'utf8'));
+  } catch {
+    return 0;
+  }
+}
+
+// A lock is stale when its owner process is gone, when the recorded PID is our own
+// (reused after a crash; locked sections are synchronous), when no owner can be read,
+// or when it is far older than any locked section can take.
 function removeStaleLock() {
   try {
-    const owner = fs.readFileSync(LOCK_FILE, 'utf8');
-    const pid = Number(owner);
-    const stale = owner
-      ? !Number.isInteger(pid) || !pidAlive(pid)
-      : Date.now() - fs.statSync(LOCK_FILE).mtimeMs > STALE_LOCK_MS;
-    if (stale && fs.readFileSync(LOCK_FILE, 'utf8') === owner) fs.unlinkSync(LOCK_FILE);
+    const before = fs.statSync(LOCK_FILE);
+    const age = Date.now() - before.mtimeMs;
+    const pid = lockOwnerPid();
+    const stale =
+      age > ABANDONED_LOCK_MS ||
+      (Number.isInteger(pid) && pid > 0 ? pid === process.pid || !pidAlive(pid) : age > STALE_LOCK_MS);
+    if (!stale) return;
+    const now = fs.statSync(LOCK_FILE);
+    if (now.ino === before.ino && now.mtimeMs === before.mtimeMs) fs.unlinkSync(LOCK_FILE);
   } catch {}
 }
 
