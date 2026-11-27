@@ -71,7 +71,7 @@ const server = http.createServer((req, res) => {
     const result = store.verify(db, key, hwid);
     if (result.changed) store.save(db);
 
-    console.log(`${new Date().toISOString()} ${ip} ${key} ${hwid.slice(0, 12)}… -> ${result.status}`);
+    console.log(`${new Date().toISOString()} ${ip} ${key.slice(0, 10)}… ${hwid.slice(0, 12)}… -> ${result.status}`);
     signedReply(res, 200, { status: result.status, expiresAt: result.expiresAt, nonce, hwid });
   });
 });
