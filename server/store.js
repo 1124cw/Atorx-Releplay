@@ -38,6 +38,27 @@ function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM';
+  }
+}
+
+// A lock is only stale when its owner process is gone (or it never got an owner written).
+function removeStaleLock() {
+  try {
+    const owner = fs.readFileSync(LOCK_FILE, 'utf8');
+    const pid = Number(owner);
+    const stale = owner
+      ? !Number.isInteger(pid) || !pidAlive(pid)
+      : Date.now() - fs.statSync(LOCK_FILE).mtimeMs > STALE_LOCK_MS;
+    if (stale && fs.readFileSync(LOCK_FILE, 'utf8') === owner) fs.unlinkSync(LOCK_FILE);
+  } catch {}
+}
+
 // Cross-process lock so the server and keys.js never overwrite each other's changes.
 function withLock(fn) {
   ensureDataDir();
@@ -46,20 +67,14 @@ function withLock(fn) {
   for (;;) {
     try {
       fd = fs.openSync(LOCK_FILE, 'wx');
+      fs.writeSync(fd, String(process.pid));
       break;
     } catch (err) {
       if (err.code !== 'EEXIST') throw err;
-      try {
-        if (Date.now() - fs.statSync(LOCK_FILE).mtimeMs > STALE_LOCK_MS) {
-          fs.unlinkSync(LOCK_FILE);
-          continue;
-        }
-      } catch {
-        continue;
-      }
-      if (Date.now() > deadline) throw new Error(`A kulcs adatbázis zárolva van (${LOCK_FILE}).`);
-      sleepSync(20);
     }
+    removeStaleLock();
+    if (Date.now() > deadline) throw new Error(`A kulcs adatbázis zárolva van (${LOCK_FILE}).`);
+    sleepSync(20);
   }
   const release = () => {
     try {
