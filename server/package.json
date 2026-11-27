@@ -1,0 +1,14 @@
+{
+  "name": "atrox-license-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Atrox Roleplay licenc (key) szerver HWID-kötéssel és lejárattal",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "keys": "node keys.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
