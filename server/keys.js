@@ -229,4 +229,8 @@ function main() {
   }
 }
 
-main();
+try {
+  main();
+} catch (err) {
+  fail(err.message);
+}
