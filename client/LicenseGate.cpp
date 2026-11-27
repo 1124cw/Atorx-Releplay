@@ -413,6 +413,7 @@ void StartLogin(HWND window) {
         return;
     }
     g_state->key = key;
+    if (IsDlgButtonChecked(window, ID_REMEMBER) != BST_CHECKED) StoreSavedKey(L"", false);
     SetBusy(window, true);
     SetStatus(window, L"Ellenőrzés...", kMuted);
 
