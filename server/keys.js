@@ -114,6 +114,10 @@ ${lines.join('\n')}
 }
 
 function cmdCreate(opts) {
+  store.withLock(() => createKeys(opts));
+}
+
+function createKeys(opts) {
   const db = store.load();
   const count = opts.count ? positiveInt(opts.count, 'count') : 1;
   let durationDays = null;
@@ -174,11 +178,13 @@ function cmdInfo(key) {
 }
 
 function mutate(key, fn, message) {
-  const db = store.load();
-  const [k, e] = getEntry(db, key);
-  fn(e, db, k);
-  store.save(db);
-  console.log(`${k}: ${message(e)}`);
+  store.withLock(() => {
+    const db = store.load();
+    const [k, e] = getEntry(db, key);
+    fn(e, db, k);
+    store.save(db);
+    console.log(`${k}: ${message(e)}`);
+  });
 }
 
 function main() {

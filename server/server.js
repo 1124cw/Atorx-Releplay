@@ -69,9 +69,18 @@ const server = http.createServer((req, res) => {
       return plainReply(res, 400, 'bad_request');
     }
 
-    const db = store.load();
-    const result = store.verify(db, key, hwid);
-    if (result.changed) store.save(db);
+    let result;
+    try {
+      result = store.withLock(() => {
+        const db = store.load();
+        const r = store.verify(db, key, hwid);
+        if (r.changed) store.save(db);
+        return r;
+      });
+    } catch (err) {
+      console.error(err.message);
+      return plainReply(res, 503, 'busy');
+    }
 
     console.log(`${new Date().toISOString()} ${ip} ${key.slice(0, 10)}… ${hwid.slice(0, 12)}… -> ${result.status}`);
     signedReply(res, 200, { status: result.status, expiresAt: result.expiresAt, nonce, hwid });

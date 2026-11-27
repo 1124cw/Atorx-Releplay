@@ -8,6 +8,9 @@ const DATA_DIR = process.env.LICENSE_DATA_DIR || path.join(__dirname, 'data');
 const KEYS_FILE = path.join(DATA_DIR, 'keys.json');
 const PRIVATE_KEY_FILE = path.join(DATA_DIR, 'private.pem');
 const PUBLIC_KEY_FILE = path.join(DATA_DIR, 'public.pem');
+const LOCK_FILE = path.join(DATA_DIR, 'keys.lock');
+const LOCK_TIMEOUT_MS = 5000;
+const STALE_LOCK_MS = 10000;
 
 const KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -29,6 +32,50 @@ function save(db) {
   const tmp = KEYS_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2), { mode: 0o600 });
   fs.renameSync(tmp, KEYS_FILE);
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+// Cross-process lock so the server and keys.js never overwrite each other's changes.
+function withLock(fn) {
+  ensureDataDir();
+  const deadline = Date.now() + LOCK_TIMEOUT_MS;
+  let fd;
+  for (;;) {
+    try {
+      fd = fs.openSync(LOCK_FILE, 'wx');
+      break;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      try {
+        if (Date.now() - fs.statSync(LOCK_FILE).mtimeMs > STALE_LOCK_MS) {
+          fs.unlinkSync(LOCK_FILE);
+          continue;
+        }
+      } catch {
+        continue;
+      }
+      if (Date.now() > deadline) throw new Error(`A kulcs adatbázis zárolva van (${LOCK_FILE}).`);
+      sleepSync(20);
+    }
+  }
+  const release = () => {
+    try {
+      fs.closeSync(fd);
+    } catch {}
+    try {
+      fs.unlinkSync(LOCK_FILE);
+    } catch {}
+  };
+  process.once('exit', release);
+  try {
+    return fn();
+  } finally {
+    process.removeListener('exit', release);
+    release();
+  }
 }
 
 function normalizeKey(key) {
@@ -81,6 +128,7 @@ module.exports = {
   DAY_MS,
   load,
   save,
+  withLock,
   normalizeKey,
   generateKey,
   loadPrivateKey,
