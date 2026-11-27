@@ -86,9 +86,7 @@ function cmdInit(opts) {
     console.log('FIGYELEM: új kulcspár után a C++ klienst újra kell fordítani!');
   } else {
     const { privateKey, publicKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-    const tmp = store.PRIVATE_KEY_FILE + '.tmp';
-    fs.writeFileSync(tmp, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
-    fs.renameSync(tmp, store.PRIVATE_KEY_FILE);
+    store.writeFileAtomic(store.PRIVATE_KEY_FILE, privateKey.export({ type: 'pkcs8', format: 'pem' }));
     fs.writeFileSync(store.PUBLIC_KEY_FILE, publicKey.export({ type: 'spki', format: 'pem' }));
     console.log(`Kulcspár létrehozva: ${store.PRIVATE_KEY_FILE}`);
   }

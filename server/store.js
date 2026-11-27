@@ -11,6 +11,7 @@ const PUBLIC_KEY_FILE = path.join(DATA_DIR, 'public.pem');
 const LOCK_FILE = path.join(DATA_DIR, 'keys.lock');
 const LOCK_TIMEOUT_MS = 5000;
 const STALE_LOCK_MS = 10000;
+const ABANDONED_LOCK_MS = 60000;
 
 const KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -27,11 +28,21 @@ function load() {
   return db;
 }
 
+// Atomic owner-only write; keeps the replaced file's owner so a root-run CLI
+// does not leave files the service account cannot read.
+function writeFileAtomic(file, data) {
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, data, { mode: 0o600 });
+  try {
+    const { uid, gid } = fs.statSync(file);
+    fs.chownSync(tmp, uid, gid);
+  } catch {}
+  fs.renameSync(tmp, file);
+}
+
 function save(db) {
   ensureDataDir();
-  const tmp = KEYS_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(db, null, 2), { mode: 0o600 });
-  fs.renameSync(tmp, KEYS_FILE);
+  writeFileAtomic(KEYS_FILE, JSON.stringify(db, null, 2));
 }
 
 function sleepSync(ms) {
@@ -136,6 +147,7 @@ function verify(db, rawKey, hwid, now = Date.now()) {
 }
 
 module.exports = {
+  writeFileAtomic,
   DATA_DIR,
   KEYS_FILE,
   PRIVATE_KEY_FILE,
