@@ -9,7 +9,15 @@ const HOST = process.env.HOST || '0.0.0.0';
 const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN || 20);
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 
-const privateKey = store.loadPrivateKey();
+const fs = require('fs');
+
+// Reloaded when private.pem changes, so `node keys.js init --force` needs no server restart.
+let signer = { mtimeMs: fs.statSync(store.PRIVATE_KEY_FILE).mtimeMs, key: store.loadPrivateKey() };
+function currentPrivateKey() {
+  const { mtimeMs } = fs.statSync(store.PRIVATE_KEY_FILE);
+  if (mtimeMs !== signer.mtimeMs) signer = { mtimeMs, key: store.loadPrivateKey() };
+  return signer.key;
+}
 const hits = new Map();
 
 function rateLimited(ip) {
@@ -34,7 +42,7 @@ function signedReply(res, httpCode, { status, expiresAt, nonce, hwid }) {
   const expires = expiresAt ? Math.floor(expiresAt / 1000) : 0;
   const message = `${nonce}|${status}|${expires}|${hwid}`;
   const sig = crypto
-    .sign('sha256', Buffer.from(message), { key: privateKey, dsaEncoding: 'ieee-p1363' })
+    .sign('sha256', Buffer.from(message), { key: currentPrivateKey(), dsaEncoding: 'ieee-p1363' })
     .toString('hex');
   res.writeHead(httpCode, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end(`status=${status}\nexpires=${expires}\nsig=${sig}\n`);
