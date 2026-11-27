@@ -74,8 +74,8 @@ function getEntry(db, rawKey) {
 }
 
 function positiveInt(value, name) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n <= 0) fail(`--${name} pozitív egész szám legyen.`);
+  const n = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(n) || n <= 0) fail(`--${name} pozitív egész szám legyen.`);
   return n;
 }
 
