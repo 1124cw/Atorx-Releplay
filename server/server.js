@@ -15,9 +15,10 @@ const hits = new Map();
 function rateLimited(ip) {
   const now = Date.now();
   const recent = (hits.get(ip) || []).filter((t) => now - t < 60_000);
-  recent.push(now);
   hits.set(ip, recent);
-  return recent.length > RATE_LIMIT_PER_MIN;
+  if (recent.length >= RATE_LIMIT_PER_MIN) return true;
+  recent.push(now);
+  return false;
 }
 
 setInterval(() => {
