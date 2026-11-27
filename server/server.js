@@ -14,8 +14,12 @@ const fs = require('fs');
 // Reloaded when private.pem changes, so `node keys.js init --force` needs no server restart.
 let signer = { mtimeMs: fs.statSync(store.PRIVATE_KEY_FILE).mtimeMs, key: store.loadPrivateKey() };
 function currentPrivateKey() {
-  const { mtimeMs } = fs.statSync(store.PRIVATE_KEY_FILE);
-  if (mtimeMs !== signer.mtimeMs) signer = { mtimeMs, key: store.loadPrivateKey() };
+  try {
+    const { mtimeMs } = fs.statSync(store.PRIVATE_KEY_FILE);
+    if (mtimeMs !== signer.mtimeMs) signer = { mtimeMs, key: store.loadPrivateKey() };
+  } catch (err) {
+    console.error(`Aláíró kulcs újratöltése sikertelen, a régit használom: ${err.message}`);
+  }
   return signer.key;
 }
 const hits = new Map();
