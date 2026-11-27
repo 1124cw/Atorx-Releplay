@@ -124,8 +124,11 @@ function createKeys(opts) {
   let expiresAt = null;
   if (opts.days) durationDays = positiveInt(opts.days, 'days');
   if (opts.until) {
-    expiresAt = Date.parse(`${opts.until}T23:59:59Z`);
-    if (Number.isNaN(expiresAt)) fail('--until formátuma: YYYY-MM-DD');
+    const until = String(opts.until);
+    expiresAt = /^\d{4}-\d{2}-\d{2}$/.test(until) ? Date.parse(`${until}T23:59:59Z`) : NaN;
+    if (Number.isNaN(expiresAt) || new Date(expiresAt).toISOString().slice(0, 10) !== until) {
+      fail('--until formátuma: YYYY-MM-DD (létező dátum)');
+    }
   }
   if (durationDays && expiresAt) fail('A --days és --until közül csak az egyiket add meg.');
 
